@@ -1,0 +1,1 @@
+cd Knossus && ../Dependencies/jay -c Parser.jay < ../Dependencies/skeleton.cs > ParserGenerated.cs

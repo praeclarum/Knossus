@@ -1,0 +1,515 @@
+%{
+using System.Text;
+using System.IO;
+using System;
+using System.Collections.Generic;
+
+namespace Knossus.Language
+{
+	/// <summary>
+	/// The Parser
+	/// </summary>
+	public partial class Parser
+	{
+
+		
+%}
+
+%token IDENTIFIER CONSTANT STRING_LITERAL SIZEOF
+%token PTR_OP INC_OP DEC_OP LEFT_OP RIGHT_OP LE_OP GE_OP EQ_OP NE_OP
+%token AND_OP OR_OP MUL_ASSIGN DIV_ASSIGN MOD_ASSIGN ADD_ASSIGN
+%token SUB_ASSIGN LEFT_ASSIGN RIGHT_ASSIGN AND_ASSIGN
+%token XOR_ASSIGN OR_ASSIGN TYPE_NAME
+
+%token TYPEDEF EXTERN STATIC AUTO REGISTER INLINE RESTRICT
+%token CHAR SHORT INT LONG SIGNED UNSIGNED FLOAT DOUBLE CONST VOLATILE VOID
+%token BOOL COMPLEX IMAGINARY
+%token STRUCT UNION ENUM ELLIPSIS
+
+%token SELECT AS FROM WHERE LIMIT OFFSET ORDER ASC DESC GROUP BY HAVING LEFT INNER CROSS JOIN ON
+
+%token CASE DEFAULT IF ELSE SWITCH WHILE DO FOR GOTO CONTINUE BREAK RETURN
+
+%start expression
+%%
+
+primary_expression
+	: IDENTIFIER			{ $$ = new VariableExpression(($1).ToString()); }
+	| CONSTANT				{ $$ = new ConstantExpression($1); }
+	| STRING_LITERAL		{ $$ = new ConstantExpression($1); }
+	| '(' expression ')'	{ $$ = $1; }
+	;
+
+postfix_expression
+	: primary_expression
+	| postfix_expression '(' ')'
+	{
+		$$ = new FuncallExpression((Expression)$1, new List<Expression> ());
+	}
+	| postfix_expression '(' argument_expression_list ')'
+	{
+		$$ = new FuncallExpression((Expression)$1, (List<Expression>)$3);
+	}
+	| postfix_expression '.' IDENTIFIER
+	{
+		$$ = new MemberExpression((Expression)$1, ($3).ToString());
+	}
+	;
+
+argument_expression_list
+	: assignment_expression
+	{
+		var l = new List<Expression>();
+		l.Add((Expression)$1);
+		$$ = l;
+	}
+	| argument_expression_list ',' assignment_expression
+	{
+		var l = (List<Expression>)$1;
+		l.Add((Expression)$3);
+		$$ = l;
+	}
+	;
+
+unary_expression
+	: postfix_expression
+	| unary_operator cast_expression
+	{
+		$$ = new UnaryExpression((Unop)$1, (Expression)$2);
+	}
+	;
+
+unary_operator
+	: '+'		{ $$ = Unop.Add; }
+	| '-'		{ $$ = Unop.Subtract; }
+	| '!'		{ $$ = Unop.Not; }
+	;
+
+cast_expression
+	: unary_expression
+	;
+
+multiplicative_expression
+	: cast_expression
+	| multiplicative_expression '*' cast_expression
+	{
+		$$ = new BinaryExpression((Expression)$1, Binop.Multiply, (Expression)$3);
+	}
+	| multiplicative_expression '/' cast_expression
+	{
+		$$ = new BinaryExpression((Expression)$1, Binop.Divide, (Expression)$3);
+	}
+	| multiplicative_expression '%' cast_expression
+	{
+		$$ = new BinaryExpression((Expression)$1, Binop.Mod, (Expression)$3);
+	}
+	;
+
+additive_expression
+	: multiplicative_expression
+	| additive_expression '+' multiplicative_expression
+	{
+		$$ = new BinaryExpression((Expression)$1, Binop.Add, (Expression)$3);
+	}
+	| additive_expression '-' multiplicative_expression
+	{
+		$$ = new BinaryExpression((Expression)$1, Binop.Subtract, (Expression)$3);
+	}
+	;
+
+shift_expression
+	: additive_expression
+	;
+
+relational_expression
+	: shift_expression
+	| relational_expression '<' shift_expression
+	{
+		$$ = new BinaryExpression((Expression)$1, Binop.LessThan, (Expression)$3);
+	}
+	| relational_expression '>' shift_expression
+	{
+		$$ = new BinaryExpression((Expression)$1, Binop.GreaterThan, (Expression)$3);
+	}
+	| relational_expression LE_OP shift_expression
+	{
+		$$ = new BinaryExpression((Expression)$1, Binop.LessThanOrEqual, (Expression)$3);
+	}
+	| relational_expression GE_OP shift_expression
+	{
+		$$ = new BinaryExpression((Expression)$1, Binop.GreaterThanOrEqual, (Expression)$3);
+	}
+	;
+
+equality_expression
+	: relational_expression
+	| equality_expression EQ_OP relational_expression
+	{
+		$$ = new BinaryExpression((Expression)$1, Binop.Equals, (Expression)$3);
+	}
+	| equality_expression NE_OP relational_expression
+	{
+		$$ = new BinaryExpression((Expression)$1, Binop.NotEquals, (Expression)$3);
+	}
+	;
+
+and_expression
+	: equality_expression
+	;
+
+exclusive_or_expression
+	: and_expression
+	;
+
+inclusive_or_expression
+	: exclusive_or_expression
+	;
+
+logical_and_expression
+	: inclusive_or_expression
+	| logical_and_expression AND_OP inclusive_or_expression
+	{
+		$$ = new BinaryExpression((Expression)$1, Binop.LogicalAnd, (Expression)$3);
+	}
+	;
+
+logical_or_expression
+	: logical_and_expression
+	| logical_or_expression OR_OP logical_and_expression
+	{
+		$$ = new BinaryExpression((Expression)$1, Binop.LogicalOr, (Expression)$3);
+	}
+	;
+
+conditional_expression
+	: logical_or_expression
+	| logical_or_expression '?' expression ':' conditional_expression
+	;
+
+assignment_expression
+	: conditional_expression
+	| unary_expression assignment_operator assignment_expression
+	{
+		var op = (Binop)$2;
+		if (op == Binop.Equals) {
+			$$ = new AssignExpression((Expression)$1, (Expression)$3);
+		}
+		else {
+			var left = (Expression)$1; 
+			$$ = new AssignExpression(left, new BinaryExpression (left, op, (Expression)$3));
+		}
+	}
+	;
+
+assignment_operator
+	: '='				{ $$ = Binop.Equals; }
+	| MUL_ASSIGN		{ $$ = Binop.Multiply; }
+	| DIV_ASSIGN		{ $$ = Binop.Divide; }
+	| MOD_ASSIGN		{ $$ = Binop.Mod; }
+	| ADD_ASSIGN		{ $$ = Binop.Add; }
+	| SUB_ASSIGN		{ $$ = Binop.Subtract; }
+	;
+
+select_expression
+	: select_core
+	{
+		var sel = (SelectExpression)$1;
+		$$ = sel;
+	}
+	| select_core select_orderby
+	{
+		var sel = (SelectExpression)$1;
+		sel.OrderBys = (List<SelectExpression.OrderingTerm>)$2;
+		$$ = sel;
+	}
+	| select_core select_orderby select_limit
+	{
+		var sel = (SelectExpression)$1;
+		throw new NotImplementedException ();
+		$$ = sel;
+	}
+	| select_core select_limit
+	{
+		var sel = (SelectExpression)$1;
+		throw new NotImplementedException ();
+		$$ = sel;
+	}
+	;
+	
+select_core
+	: SELECT result_column_list select_from
+	{
+		var sel = new SelectExpression {
+			ResultColumns = (List<SelectExpression.ResultColumn>)$2,
+			From = (SelectExpression.JoinSource)$3,
+		};
+		$$ = sel;
+	}
+	| SELECT result_column_list select_from select_where
+	{
+		var sel = new SelectExpression {
+			ResultColumns = (List<SelectExpression.ResultColumn>)$2,
+			From = (SelectExpression.JoinSource)$3,
+			Where = (Expression)$4,
+		};
+		$$ = sel;
+	}
+	| SELECT result_column_list select_from select_groupby
+	{
+		var sel = new SelectExpression {
+			ResultColumns = (List<SelectExpression.ResultColumn>)$2,
+			From = (SelectExpression.JoinSource)$3,
+			GroupBy = (SelectExpression.GroupByInfo)$4,
+		};
+		$$ = sel;
+	}
+	| SELECT result_column_list select_from select_where select_groupby
+	{
+		var sel = new SelectExpression {
+			ResultColumns = (List<SelectExpression.ResultColumn>)$2,
+			From = (SelectExpression.JoinSource)$3,
+			Where = (Expression)$4,
+			GroupBy = (SelectExpression.GroupByInfo)$5,
+		};
+		$$ = sel;
+	}
+	;
+	
+result_column
+	: conditional_expression
+	{
+		$$ = new SelectExpression.ResultColumn {
+			Expr = (Expression)$1,
+		};
+	}
+	| conditional_expression AS IDENTIFIER
+	{
+		$$ = new SelectExpression.ResultColumn {
+			Expr = (Expression)$1,
+			Alias = ($3).ToString (),
+		};
+	}
+	;
+	
+result_column_list
+	: result_column
+	{
+		$$ = new List<SelectExpression.ResultColumn> { (SelectExpression.ResultColumn)$1, };
+	}
+	| result_column_list ',' result_column
+	{
+		var list = (List<SelectExpression.ResultColumn>)$1;
+		list.Add ((SelectExpression.ResultColumn)$3);
+		$$ = list;
+	}
+	;
+
+select_from
+	: FROM join_source
+	{
+		$$ = $2;
+	}
+	;
+	
+join_source
+	: single_source
+	{
+		$$ = new SelectExpression.JoinSource {
+			From = (SelectExpression.SingleSource)$1,
+		};
+	}
+	| single_source join_list
+	{
+		$$ = new SelectExpression.JoinSource {
+			From = (SelectExpression.SingleSource)$1,
+			Joins = (List<SelectExpression.Join>)$2,
+		};
+	}
+	;
+	
+join
+	: join_op single_source join_constraint
+	{
+		$$ = new SelectExpression.Join {
+			Op = (SelectExpression.JoinOp)$1,
+			Source = (SelectExpression.SingleSource)$2,
+			Constraint = (SelectExpression.JoinConstraint)$3,
+		};
+	}
+	;
+
+join_op
+	: LEFT JOIN
+	{
+		$$ = SelectExpression.JoinOp.Left;
+	}
+	| INNER JOIN
+	{
+		$$ = SelectExpression.JoinOp.Inner;
+	}
+	| JOIN
+	{
+		$$ = SelectExpression.JoinOp.Inner;
+	}
+	| CROSS JOIN
+	{
+		$$ = SelectExpression.JoinOp.Cross;
+	}
+	;
+
+join_constraint
+	: ON relational_expression EQ_OP relational_expression
+	{
+		$$ = new SelectExpression.OnJoinConstraint { Left = (Expression)$2, Right = (Expression)$4, };
+	}
+	;
+	
+join_list
+	: join
+	{
+		$$ = new List<SelectExpression.Join> { (SelectExpression.Join)$1 };
+	}
+	| join_list join
+	{
+		var list = (List<SelectExpression.Join>)$1;
+		list.Add ((SelectExpression.Join)$2);
+		$$ = list;
+	}
+	;
+
+single_source
+	: IDENTIFIER
+	{
+		$$ = new SelectExpression.SingleSource {
+			TableName = $1.ToString (),
+		};
+	}
+	| IDENTIFIER '.' IDENTIFIER
+	{
+		$$ = new SelectExpression.SingleSource {
+			DatabaseName = $1.ToString (),
+			TableName = $3.ToString (),
+		};
+	}
+	| IDENTIFIER AS IDENTIFIER
+	{
+		$$ = new SelectExpression.SingleSource {
+			TableName = $1.ToString (),
+			TableAlias = $3.ToString (),
+		};
+	}
+	| IDENTIFIER '.' IDENTIFIER AS IDENTIFIER
+	{
+		$$ = new SelectExpression.SingleSource {
+			DatabaseName = $1.ToString (),
+			TableName = $3.ToString (),
+			TableAlias = $5.ToString (),
+		};
+	}
+	| IDENTIFIER IDENTIFIER
+	{
+		$$ = new SelectExpression.SingleSource {
+			TableName = $1.ToString (),
+			TableAlias = $2.ToString (),
+		};
+	}
+	| IDENTIFIER '.' IDENTIFIER IDENTIFIER
+	{
+		$$ = new SelectExpression.SingleSource {
+			DatabaseName = $1.ToString (),
+			TableName = $3.ToString (),
+			TableAlias = $4.ToString (),
+		};
+	}
+	;
+
+select_where
+	: WHERE logical_or_expression
+	{
+		$$ = $2;
+	}
+	;
+	
+select_groupby
+	: GROUP BY shift_expression_list
+	{
+		$$ = new SelectExpression.GroupByInfo { Expressions = (List<Expression>)$3, };
+	}
+	| GROUP BY shift_expression_list HAVING logical_or_expression
+	{
+		$$ = new SelectExpression.GroupByInfo { Expressions = (List<Expression>)$3, Having = (Expression)$5, };
+	}
+	;
+
+select_orderby
+	: ORDER BY ordering_term_list
+	{
+		$$ = $3;
+	}
+	;
+	
+ordering_term
+	: shift_expression
+	{
+		$$ = new SelectExpression.OrderingTerm {
+			Expr = (Expression)$1,
+			Ascending = true,
+		};
+	}
+	| shift_expression ASC
+	{
+		$$ = new SelectExpression.OrderingTerm {
+			Expr = (Expression)$1,
+			Ascending = true,
+		};
+	}
+	| shift_expression DESC
+	{
+		$$ = new SelectExpression.OrderingTerm {
+			Expr = (Expression)$1,
+			Ascending = false,
+		};
+	}
+	;
+	
+ordering_term_list
+	: ordering_term
+	{
+		$$ = new List<SelectExpression.OrderingTerm> { (SelectExpression.OrderingTerm)$1, };
+	}
+	| ordering_term_list ',' ordering_term
+	{
+		var list = (List<SelectExpression.OrderingTerm>)$1;
+		list.Add ((SelectExpression.OrderingTerm)$3);
+		$$ = list;
+	}
+	;
+	
+select_limit
+	: LIMIT shift_expression
+	| LIMIT shift_expression ',' shift_expression
+	| LIMIT shift_expression OFFSET shift_expression
+	;
+
+shift_expression_list
+	: shift_expression
+	{
+		$$ = new List<Expression> { (Expression)$1, };
+	}
+	| shift_expression_list ',' shift_expression
+	{
+		var list = (List<Expression>)$1;
+		list.Add ((Expression)$3);
+		$$ = list;
+	}
+	;
+
+expression
+	: assignment_expression
+	| select_expression
+	;
+
+%%
+
+}
+

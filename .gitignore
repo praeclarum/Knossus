@@ -1,0 +1,6 @@
+
+.DS_Store
+*.userprefs
+bin
+obj
+test-results

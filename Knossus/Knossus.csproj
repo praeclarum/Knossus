@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="3.5" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">x86</Platform>
+    <ProductVersion>9.0.21022</ProductVersion>
+    <SchemaVersion>2.0</SchemaVersion>
+    <ProjectGuid>{EE3C9462-8C30-4245-9261-6C2CFD815E20}</ProjectGuid>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>Knossus</RootNamespace>
+    <AssemblyName>Knossus</AssemblyName>
+    <TargetFrameworkVersion>v3.5</TargetFrameworkVersion>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|x86' ">
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>full</DebugType>
+    <Optimize>false</Optimize>
+    <OutputPath>bin\Debug</OutputPath>
+    <DefineConstants>DEBUG;</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+    <PlatformTarget>x86</PlatformTarget>
+    <Externalconsole>true</Externalconsole>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|x86' ">
+    <DebugType>none</DebugType>
+    <Optimize>true</Optimize>
+    <OutputPath>bin\Release</OutputPath>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+    <PlatformTarget>x86</PlatformTarget>
+    <Externalconsole>true</Externalconsole>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="System" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="AssemblyInfo.cs" />
+    <Compile Include="Application.cs" />
+    <Compile Include="ParserGenerated.cs" />
+    <Compile Include="Parser.cs" />
+    <Compile Include="Language\Expression.cs" />
+    <Compile Include="Language\VariableExpression.cs" />
+    <Compile Include="Language\ConstantExpression.cs" />
+    <Compile Include="Language\BinaryExpression.cs" />
+    <Compile Include="Language\UnaryExpression.cs" />
+    <Compile Include="Language\Binop.cs" />
+    <Compile Include="Language\Unop.cs" />
+    <Compile Include="Language\MemberExpression.cs" />
+    <Compile Include="Language\FuncallExpression.cs" />
+    <Compile Include="Language\AssignExpression.cs" />
+    <Compile Include="Language\Lexer.cs" />
+    <Compile Include="Language\SelectExpression.cs" />
+    <Compile Include="Server\HttpServer.cs" />
+    <Compile Include="WebApp.cs" />
+    <Compile Include="WebModule.cs" />
+    <Compile Include="WebResource.cs" />
+  </ItemGroup>
+  <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
+  <ItemGroup>
+    <None Include="Parser.jay" />
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="Language\" />
+    <Folder Include="Server\" />
+  </ItemGroup>
+</Project>
