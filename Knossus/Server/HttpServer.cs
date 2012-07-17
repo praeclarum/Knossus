@@ -44,11 +44,7 @@ namespace Knossus.Server
 			else {
 				c.Response.StatusCode = 200;
 				c.Response.SendChunked = true;
-				using (var s = c.Response.OutputStream) {
-					using (var w = new StreamWriter (s)) {
-						w.WriteLine (r);
-					}
-				}
+				r.Respond (c);
 			}
 		}
 

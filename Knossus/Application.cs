@@ -9,6 +9,9 @@ namespace Knossus
 		{
 			var app = new WebApp ();
 
+			var mod = new WebModule ();
+			mod.Load ("/Users/fak/Projects/Knossus/Knossus/Modules/movie.w");
+			app.Modules.Add (mod);
 
 			var server = new HttpServer (app);
 			server.Start ();

@@ -16,8 +16,14 @@
 # group by movie_id;
 
 
+/
+	GET
+	return "Hello World"
+
+
+
 /movies_and_ratings
-GET
+	GET
 	movies = select {
 		title: m.title,
 		avg_rating: avg(rating),
@@ -39,7 +45,11 @@ GET
 
 	return movies;
 	
+
+
+
 /director/{name:\w+}
+	PUT
 	director = select id from directors where name == $name limit 1;
 	
 	ratings = select {
@@ -51,14 +61,19 @@ GET
 		title: m.title,
 	} from movies m where director == $director;
 
-GET
+	GET
 	return ratings, movies;
 
+		text/html
+		<sjkdhfksjdhf><sdhfjkdshf>
+
+
+
 /{id:\d+}
-
-GET
-
-PUT
+	GET
+	sldkjflksdjf
+	
+	PUT
 	in string name;
 	
 

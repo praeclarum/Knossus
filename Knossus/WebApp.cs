@@ -6,6 +6,7 @@ namespace Knossus
 {
 	public class WebApp
 	{
+		public IStorage Storage { get; set; }
 		public List<WebModule> Modules { get; set; }
 
 		public WebApp ()
